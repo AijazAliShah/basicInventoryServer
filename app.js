@@ -6,7 +6,9 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const bodyParser = require('body-parser');
 const Product = require("./models/Product");
+const User = require("./models/User");
 const passport = require('passport');
+const bcrypt = require('bcrypt');
 var app = express();
 
 
@@ -70,7 +72,8 @@ app.post('/add/product', async (req, res) => {
     description: req.body.description,
     price: req.body.price,
     quantity: req.body.quantity,
-    serialNo: req.body.serialNo
+    serialNo: req.body.serialNo,
+    userId: req.body.userId
   });
 
   product.save(function (err) {
@@ -93,9 +96,9 @@ app.post('/add/product', async (req, res) => {
 });
 
 //get all stores
-app.get('/get/products/', (req, res) => {
+app.get('/get/products/:uid', (req, res) => {
 
-  Product.find({})
+  Product.find({userId: req.params.uid})
   .then(products => {
     res.json(products);
   })
@@ -151,7 +154,46 @@ app.put("/edit/product/quantity/:id", async (req, res) => {
   });
 });
 
+app.post('/signup', async (req, res) => {
+  console.log(req.body)
+  // Check if this user already exisits
+  let user = await User.findOne({ email: req.body.email });
+  if (user) {
+      return res.status(200).send('User already exists!');
+  } else {
+      // Insert the new user if they do not exist yet
+      user = new User({
+          name: req.body.name,
+          email: req.body.email,
+          password: req.body.password,
+      });
 
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(user.password, salt);
+
+      await user.save();
+      res.send(user);
+  }
+});
+
+
+app.post('/signin', async (req, res) => {
+
+  //  Now find the user by their email address
+  let user = await User.findOne({ email: req.body.email });
+  if (!user) {
+      return res.status(200).send('Email does not exist.');
+  }
+
+  // Then validate the Credentials in MongoDB match
+  // those provided in the request
+  const validPassword = await bcrypt.compare(req.body.password, user.password);
+  if (!validPassword) {
+      return res.status(200).send('Incorrect password.');
+  }
+
+  res.send(user);
+});
 
 
 const port = process.env.PORT || 3000;

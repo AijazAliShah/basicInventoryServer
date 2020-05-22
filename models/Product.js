@@ -21,6 +21,9 @@ const ProductSchema = new Schema({
     serialNo: {
         type: String
     },
+    userId: {
+        type: String
+    },
     
 });
 
